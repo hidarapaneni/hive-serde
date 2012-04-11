@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Hive-serde : JSON SerDe for Hive" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Hive-serde</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/proofpoint/hive-serde">Fork Me on GitHub</a>
+
+          <h1 id="project_title">Hive-serde</h1>
+          <h2 id="project_tagline">JSON SerDe for Hive</h2>
+
+          <section id="downloads">
+            <a class="zip_download_link" href="https://github.com/proofpoint/hive-serde/zipball/master">Download this project as a .zip file</a>
+            <a class="tar_download_link" href="https://github.com/proofpoint/hive-serde/tarball/master">Download this project as a tar.gz file</a>
+          </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>JSON Serde for Hive</h1>
+
+<h2>Features</h2>
+
+<ul>
+<li>Full support for arrays, maps and structures</li>
+<li>Automatic column to field mapping using table DDL</li>
+<li>Map keys are case-insensitive for convenience</li>
+<li>Optional ignoring of bad records</li>
+</ul><h2>Setup</h2>
+
+<p>Compile using <code>mvn clean package</code>, or download the release JAR:</p>
+
+<pre><code>curl -L <a href="http://bit.ly/mRYaNB">http://bit.ly/mRYaNB</a> &gt; hive-serde-1.0.jar
+</code></pre>
+
+<p>Register the JAR with Hive:</p>
+
+<pre><code>add jar hive-serde-1.0.jar;
+</code></pre>
+
+<h2>Examples</h2>
+
+<h3>Simple Table</h3>
+
+<p>Create the table:</p>
+
+<pre><code>CREATE EXTERNAL TABLE message (
+  messageid string,
+  messagesize int
+)
+ROW FORMAT SERDE 'com.proofpoint.hive.serde.JsonSerde'
+LOCATION '/tmp/json';
+</code></pre>
+
+<p>Corresponding JSON record:</p>
+
+<pre><code>{
+  "messageId": "34dd0d3c-f53b-11e0-ac12-d3e782dff199",
+  "messageSize": 12345
+}
+</code></pre>
+
+<p>Notice that the JSON field names can contain upper case characters.</p>
+
+<h3>Ignoring Errors</h3>
+
+<p>Create a table and set the <code>errors.ignore</code> serde property:</p>
+
+<pre><code>CREATE EXTERNAL TABLE message (
+  messageid string,
+  messagesize int
+)
+ROW FORMAT SERDE 'com.proofpoint.hive.serde.JsonSerde'
+WITH SERDEPROPERTIES ('errors.ignore' = 'true')
+LOCATION '/tmp/json';
+</code></pre>
+
+<p>With the default <code>errors.ignore</code> value of <code>false</code>, an error in any record
+will cause the entire query to fail.</p>
+
+<p>When set to <code>true</code>, if a record has errors, then every column for that
+record will be <code>NULL</code>. This is a limitation of the Hive serde API.
+Unfortunately, it is not possible for the serde to cause Hive to skip the
+record entirely. However, if you have a column that is never <code>NULL</code>, such
+as the primary key, you can use this column to filter out bad records:</p>
+
+<pre><code>SELECT * FROM message WHERE messageid IS NOT NULL;
+</code></pre>
+
+<p>This logic can be encapsulated into a view:</p>
+
+<pre><code>CREATE VIEW v_message AS
+SELECT * FROM message WHERE messageid IS NOT NULL;
+</code></pre>
+
+<h3>Nested Structures</h3>
+
+<p>Create the table:</p>
+
+<pre><code>CREATE EXTERNAL TABLE message (
+  messageid string,
+  messagesize int,
+  sender string,
+  recipients array&lt;string&gt;,
+  messageparts array&lt;struct&lt;
+    extension: string,
+    size: int
+  &gt;&gt;,
+  headers map&lt;string,string&gt;
+)
+ROW FORMAT SERDE 'com.proofpoint.hive.serde.JsonSerde'
+LOCATION '/tmp/json';
+</code></pre>
+
+<p>Corresponding JSON record:</p>
+
+<pre><code>{
+  "messageId": "34dd0d3c-f53b-11e0-ac12-d3e782dff199",
+  "messageSize": 12345,
+  "sender": "alice@example.com",
+  "recipients": ["joe@example.com", "bob@example.com"],
+  "messageParts": [
+    {
+      "extension": "pdf",
+      "size": 4567
+    },
+    {
+      "extension": "jpg",
+      "size": 9451
+    }
+  ],
+  "headers": {
+    "Received-SPF": "pass",
+    "X-Broadcast-Id": "9876"
+  }
+}
+</code></pre>
+
+<p>Query the table:</p>
+
+<pre><code>SELECT
+  messageid,
+  recipients[0],
+  SIZE(recipients) AS recipient_count,
+  messageParts[0].extension,
+  headers['received-spf']
+FROM message;
+</code></pre>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Hive-serde maintained by <a href="https://github.com/proofpoint">proofpoint</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
